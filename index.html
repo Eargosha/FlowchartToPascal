@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html class="dark" lang="ru">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Переводчик Блок-схем в Pascal</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js"></script>
+
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#135bec",
+            "background-light": "#f6f6f8",
+            "background-dark": "#101622",
+          },
+          fontFamily: {
+            "display": ["Inter", "sans-serif"]
+          },
+          borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+        },
+      },
+    }
+  </script>
+  <style>
+    /* Уточненные стили для новых типов блоков */
+    .block.while-cycle-condition,
+    .block.until-cycle-condition {
+      width: 120px;
+      height: 80px;
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+      /* Ромб */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      /* Убедимся, что у них есть визуальный стиль */
+      background-color: #f0f0f0;
+      /* Светлый фон */
+      border: 2px solid #666;
+      /* Граница */
+      color: #333;
+      /* Цвет текста */
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+
+    .block.while-cycle-body,
+    .block.until-cycle-body {
+      width: 120px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      /* Убедимся, что у них есть визуальный стиль */
+      background-color: #e0e0e0;
+      /* Светлый фон */
+      border: 2px solid #666;
+      /* Граница */
+      color: #333;
+      /* Цвет текста */
+      font-size: 12px;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+
+    /* Стили для возвратной стрелки цикла (SVG) */
+    .connector.loop-connector {
+      stroke: #666;
+      stroke-width: 2;
+      fill: none;
+      marker-end: url(#arrowhead);
+    }
+
+    /* Стили для точек соединения */
+    .counted-cycle-connection,
+    .while-cycle-connection,
+    .until-cycle-connection {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background-color: #4CAF50;
+      border-radius: 50%;
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+
+    .counted-cycle-connection {
+      bottom: -10px;
+      left: 50%;
+    }
+
+    .while-cycle-connection {
+      bottom: 100%;
+      left: 50%;
+      display: none;
+    }
+
+    /* Точка на нижней стороне тела while */
+    .until-cycle-connection {
+      top: 0%;
+      left: 50%;
+      /* display: none; */
+    }
+
+    /* Точка на верхней стороне тела until */
+    /* Стили для новой точки соединения на условных блоках циклов */
+    .cycle-condition-connection {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background-color: #4CAF50;
+      /* Зелёный цвет, как у других точек */
+      border-radius: 50%;
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+
+    .counted-cycle-condition-connection {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background-color: #4CAF50;
+      /* Зелёный цвет, как у других точек */
+      border-radius: 50%;
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+  </style>
+</head>
+
+<body class="font-display bg-background-light dark:bg-background-dark">
+  <div class="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
+    <div class="layout-container flex h-full grow flex-col">
+      <header class="px-4 sm:px-8 md:px-12 lg:px-20 py-5">
+        <div class="flex flex-col items-center justify-center gap-3">
+          <h1 class="text-slate-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em] text-center">
+            Переводчик Блок-схем в Pascal</h1>
+
+        </div>
+      </header>
+      <main class="flex-grow grid grid-rows-1 gap-16 px-4 sm:px-8 md:px-12 lg:px-20 pb-16">
+        <div class="flex flex-col gap-4">
+          <div
+            class="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl bg-white/50 dark:bg-slate-900/50 p-3 sm:p-4 border border-slate-200 dark:border-slate-800 shadow-sm">
+
+            <!-- Левая часть: Управление диаграммой -->
+            <div class="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-start">
+              <!-- Очистка диаграммы -->
+
+              <button id="clear-diagram"
+                class="flex items-center justify-center rounded-lg h-10 px-3 bg-primary/10 text-primary text-sm font-medium leading-normal gap-1 hover:bg-primary/20 transition-colors"
+                aria-label="Очистить диаграмму" title="Очистить диаграмму">
+                <span class="material-symbols-outlined text-lg text-base">
+                  delete
+                </span>
+                <span class="hidden sm:inline"> </span>
+              </button>
+
+
+              <!-- Импорт/Экспорт на мобилке -->
+              <div class="flex items-center gap-2 sm:hidden">
+                <button id="import-btn-mobile"
+                  class="flex items-center justify-center rounded-lg h-10 px-3 bg-primary/10 text-primary text-sm font-medium leading-normal gap-1 hover:bg-primary/20 transition-colors"
+                  aria-label="Импорт" title="Импортировать">
+                  <span class="material-symbols-outlined text-base">
+                    upload
+                  </span>
+                </button>
+                <button id="export-btn-mobile"
+                  class="flex items-center justify-center rounded-lg h-10 px-3 bg-primary/10 text-primary text-sm font-medium leading-normal gap-1 hover:bg-primary/20 transition-colors"
+                  aria-label="Экспорт" title="Экспортировать">
+                  <span class="material-symbols-outlined text-base">
+                    save
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Центральная часть: Заголовок -->
+            <div class="flex items-center justify-center w-full sm:w-auto order-first sm:order-none">
+              <h2
+                class="text-base sm:text-lg font-bold text-center text-slate-900 dark:text-white tracking-[-0.015em] px-2">
+                Стиль кода внутри элементов - Pascal
+              </h2>
+            </div>
+
+            <!-- Правая часть: Основные действия (десктоп) -->
+            <div class="hidden sm:flex items-center gap-3 w-full sm:w-auto justify-end">
+              <!-- Группа импорт/экспорт -->
+              <div class="flex items-center gap-2">
+                <button id="import-btn"
+                  class="flex items-center justify-center rounded-lg h-10 px-4 bg-primary/10 text-primary text-sm font-medium leading-normal gap-2 hover:bg-primary/20 transition-colors"
+                  aria-label="Импортировать диаграмму">
+                  <span class="material-symbols-outlined text-base">
+                    upload
+                  </span>
+                  <span class="truncate hidden sm:inline">Импорт</span>
+                </button>
+                <button id="export-btn"
+                  class="flex items-center justify-center rounded-lg h-10 px-4 bg-primary/10 text-primary text-sm font-medium leading-normal gap-2 hover:bg-primary/20 transition-colors"
+                  aria-label="Экспортировать диаграмму">
+                  <span class="material-symbols-outlined text-base">
+                    save
+                  </span>
+                  <span class="truncate hidden sm:inline">Экспорт</span>
+                </button>
+              </div>
+
+              <!-- Основная кнопка перевода -->
+              <button id="translate-btn"
+                class="flex items-center justify-center rounded-lg h-10 px-4 sm:px-5 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-primary/90 transition-colors shadow-sm hover:shadow"
+                aria-label="Перевести диаграмму в код">
+                <span class="material-symbols-outlined text-base">
+                  arrow_forward
+                </span>
+                <span class="truncate">Перевести</span>
+              </button>
+            </div>
+
+            <!-- Правая часть: Основные действия (мобилка) -->
+            <div class="flex sm:hidden items-center gap-3 w-full justify-end order-last">
+              <button id="translate-btn-mobile"
+                class="flex items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal gap-2 hover:bg-primary/90 transition-colors shadow-sm flex-1 sm:flex-none"
+                aria-label="Перевести диаграмму в код">
+                <span class="material-symbols-outlined text-base">
+                  arrow_forward
+                </span>
+                <span class="truncate">Перевести</span>
+              </button>
+            </div>
+
+          </div>
+          <div
+            class="flex flex-col flex-grow rounded-xl bg-white dark:bg-[#111722] border border-slate-200 dark:border-slate-800 shadow-sm p-4">
+            <div class="flowchart-canvas" id="flowchart-canvas">
+              <!-- Начальный блок будет добавлен через JS -->
+            </div>
+            <div id="plantuml-output" class="mt-4 p-3 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-mono">
+              <p class="text-slate-500 dark:text-slate-400 mb-2">PlantUML код (спрятать в финале):</p>
+              <pre class="plantuml-code whitespace-pre-wrap break-words text-slate-900 dark:text-slate-100"></pre>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-col gap-4">
+          <div
+            class="flex items-center justify-between gap-4 rounded-xl bg-white/50 dark:bg-slate-900/50 p-3 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white tracking-[-0.015em]">Вывод кода Pascal</h2>
+            <button id="copy-code-btn"
+              class="flex items-center gap-2 min-w-[84px] cursor-pointer justify-center overflow-hidden rounded-lg h-10 px-4 bg-slate-200 dark:bg-[#232f48] text-slate-900 dark:text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-slate-300 dark:hover:bg-[#2b3a57] transition-colors">
+              <span class="material-symbols-outlined text-base">
+                content_copy
+              </span>
+              <span class="truncate">Копировать</span>
+            </button>
+          </div>
+          <div id="errors-container" class="mt-2 space-y-2"></div>
+          <div
+            class=" rounded-xl bg-[#0d1117] p-4 font-mono text-sm border border-slate-200 dark:border-slate-800 shadow-sm">
+            <pre class="overflow-auto w-full whitespace-pre-wrap"><code id="pascal-code" class="language-pascal text-[#c9d1d9]">PROGRAM Flowchart;
+VAR
+    x: INTEGER;
+BEGIN
+    (* Ваш сгенерированный код на Pascal появится здесь. *)
+    (* Нажмите кнопку 'Перевести', чтобы сгенерировать код из вашей блок-схемы. *)
+END.</code></pre>
+          </div>
+        </div>
+        <!-- AST Tree Container -->
+        <div class="">
+          <div
+            class="flex items-center justify-between gap-4 rounded-xl bg-white/50 dark:bg-slate-900/50 p-3 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white tracking-[-0.015em]">Дерево синтаксического
+              анализа (AST)</h2>
+            <button id="toggle-ast"
+              class="flex items-center gap-2 min-w-[84px] cursor-pointer justify-center overflow-hidden rounded-lg h-10 px-4 bg-slate-200 dark:bg-[#232f48] text-slate-900 dark:text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-slate-300 dark:hover:bg-[#2b3a57] transition-colors">
+              <span class="material-symbols-outlined text-base">unfold_more</span>
+              <span class="truncate">Свернуть всё</span>
+            </button>
+          </div>
+          <div id="ast-container"
+            class="mt-2 rounded-xl bg-[#0d1117] p-4 font-mono text-sm border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div class="ast-tree" id="ast-tree">
+              <p class="text-slate-500 dark:text-slate-400 italic">AST будет отображён здесь после генерации кода</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Popup для выбора типа блока -->
+    <div class="popup" id="block-type-popup">
+      <div class="popup-content">
+        <h3 class="text-xl font-bold mb-4 text-slate-900 dark:text-white">Выберите тип блока</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="block-type" data-type="process">
+            <h4 class="font-bold text-slate-900 dark:text-white">Действие</h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Присваивание, вычисление</p>
+          </div>
+          <div class="block-type" data-type="input">
+            <h4 class="font-bold text-slate-900 dark:text-white">Ввод данных</h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Считывание значений</p>
+          </div>
+          <div class="block-type" data-type="output">
+            <h4 class="font-bold text-slate-900 dark:text-white">Вывод данных</h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Отображение результатов</p>
+          </div>
+          <div class="block-type" data-type="decision">
+            <h4 class="font-bold text-slate-900 dark:text-white">Условие</h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Логическое выражение</p>
+          </div>
+          <div class="block-type" data-type="end">
+            <h4 class="font-bold text-slate-900 dark:text-white">Конец</h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Завершение программы</p>
+          </div>
+          <div class="block-type" data-type="counted-cycle">
+            <h4 class="font-bold text-slate-900 dark:text-white">Цикл (счетный)</h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Цикл с параметром <span
+                class="block-counted-cycle-preview">i от 1 до n</span></p>
+          </div>
+          <!-- Новые типы блоков -->
+          <div class="block-type" data-type="while-cycle">
+            <h4 class="font-bold text-slate-900 dark:text-white">Цикл (с предусловием)</h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400">while (условие)</p>
+          </div>
+          <div class="block-type" data-type="until-cycle">
+            <h4 class="font-bold text-slate-900 dark:text-white">Цикл (с постусловием)</h4>
+            <p class="text-sm text-slate-600 dark:text-slate-400">repeat...until (условие)</p>
+          </div>
+        </div>
+        <button id="cancel-block"
+          class="mt-4 w-full py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white font-medium hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+          Отмена
+        </button>
+      </div>
+    </div>
+
+    <!-- Popup для редактирования контента блока -->
+    <div class="popup" id="edit-popup">
+      <div class="edit-popup">
+        <h3 class="text-lg font-bold mb-2 text-slate-900 dark:text-white" id="edit-popup-title">Редактировать контент
+        </h3>
+        <input type="text" id="edit-content-input" class="w-full p-2 border rounded" placeholder="Введите текст...">
+        <div class="edit-popup-buttons">
+          <button class="cancel" id="cancel-edit">Отмена</button>
+          <button class="save" id="save-edit">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <svg id="svg-defs" width="0" height="0">
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+      </marker>
+    </defs>
+  </svg>
+
+  <input type="file" id="import-file" accept=".json" style="display: none;">
+
+  <script>
+    // Глобальные переменные для управления блок-схемой
+    const blocks = [];
+    let connections = [];
+    let blockCounter = 1;
+    let selectedConnectionPoint = null;
+    let editingBlockId = null;
+    let connectionStart = null;
+
+    // Переменные для перетаскивания
+    let draggingBlock = null;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    // Инициализация с начальным блоком "Начало"
+    document.addEventListener('DOMContentLoaded', () => {
+      initFlowchart();
+      setupEventListeners();
+    });
+
+    function initFlowchart() {
+      const canvas = document.getElementById('flowchart-canvas');
+      canvas.innerHTML = '';
+
+      // Сбрасываем данные
+      blocks.length = 0;
+      connections.length = 0;
+
+      // Создаем начальный блок "Начало"
+      addStartBlock(150, 100);
+
+      // Обновляем PlantUML код
+      generatePlantUML();
+    }
+
+    function setupEventListeners() {
+      document.getElementById('clear-diagram').addEventListener('click', initFlowchart);
+      document.getElementById('translate-btn').addEventListener('click', translateToPascal);
+      document.getElementById('translate-btn-mobile').addEventListener('click', translateToPascal);
+      document.getElementById('export-btn').addEventListener('click', exportFlowchart);
+      // Назначаем обработчик для кнопки импорта, чтобы она активировала input
+      document.getElementById('import-btn').addEventListener('click', () => {
+        document.getElementById('import-file').click(); // Симулируем клик по input
+      });
+
+      // Назначаем обработчик для самого input
+      document.getElementById('import-file').addEventListener('change', importFlowchart);
+      document.getElementById('copy-code-btn').addEventListener('click', copyPascalCode);
+      document.getElementById('cancel-block').addEventListener('click', () => {
+        document.getElementById('block-type-popup').classList.remove('active');
+      });
+      document.getElementById('cancel-edit').addEventListener('click', () => {
+        document.getElementById('edit-popup').classList.remove('active');
+        editingBlockId = null;
+      });
+      document.getElementById('save-edit').addEventListener('click', saveBlockContent);
+
+      // Добавляем обработчики для выбора типа блока
+      document.querySelectorAll('.block-type').forEach(element => {
+        element.addEventListener('click', () => {
+          const type = element.getAttribute('data-type');
+          createNewBlock(type);
+          document.getElementById('block-type-popup').classList.remove('active');
+        });
+      });
+
+      document.getElementById('flowchart-canvas').addEventListener('mousedown', (e) => {
+        if (e.target === document.getElementById('flowchart-canvas')) {
+          if (connectionStart && connectionStart.block) {
+            const canvasRect = e.target.getBoundingClientRect();
+            connectionStart.x = e.clientX - canvasRect.left;
+            connectionStart.y = e.clientY - canvasRect.top;
+          }
+        }
+      });
+
+      document.getElementById('flowchart-canvas').addEventListener('mousemove', (e) => {
+        if (connectionStart) {
+          const canvas = document.getElementById('flowchart-canvas');
+          const canvasRect = canvas.getBoundingClientRect();
+
+          const tempConnections = document.querySelectorAll('.temp-connector');
+          tempConnections.forEach(conn => conn.remove());
+
+          const tempConnector = document.createElement('div');
+          tempConnector.className = 'connector temp-connector';
+          tempConnector.style.position = 'absolute';
+          tempConnector.style.backgroundColor = '#3f51b5';
+          tempConnector.style.zIndex = '100';
+
+          const toX = e.clientX - canvasRect.left;
+          const toY = e.clientY - canvasRect.top;
+
+          const length = Math.sqrt(Math.pow(toX - connectionStart.x, 2) + Math.pow(toY - connectionStart.y, 2));
+          const angle = Math.atan2(toY - connectionStart.y, toX - connectionStart.x) * 180 / Math.PI;
+
+          tempConnector.style.width = `${length}px`;
+          tempConnector.style.height = '2px';
+          tempConnector.style.transform = `rotate(${angle}deg)`;
+          tempConnector.style.transformOrigin = '0 0';
+          tempConnector.style.left = `${connectionStart.x}px`;
+          tempConnector.style.top = `${connectionStart.y}px`;
+
+          canvas.appendChild(tempConnector);
+        }
+      });
+
+      document.getElementById('flowchart-canvas').addEventListener('mouseup', (e) => {
+        if (connectionStart && connectionStart.block) {
+          const canvas = document.getElementById('flowchart-canvas');
+          const canvasRect = canvas.getBoundingClientRect();
+
+          const tempConnections = document.querySelectorAll('.temp-connector');
+          tempConnections.forEach(conn => conn.remove());
+
+          const mouseX = e.clientX - canvasRect.left;
+          const mouseY = e.clientY - canvasRect.top;
+
+          let targetBlock = null;
+          for (const block of blocks) {
+            const blockElement = document.getElementById(block.id);
+            if (!blockElement) continue;
+
+            const rect = blockElement.getBoundingClientRect();
+            const blockX = rect.left - canvasRect.left;
+            const blockY = rect.top - canvasRect.top;
+            const blockWidth = rect.width;
+            const blockHeight = rect.height;
+
+            if (mouseX >= blockX && mouseX <= blockX + blockWidth &&
+              mouseY >= blockY && mouseY <= blockY + blockHeight) {
+              targetBlock = block;
+              break;
+            }
+          }
+
+          if (targetBlock && connectionStart.block.type === 'end') {
+            connections.push({
+              from: connectionStart.block.id,
+              to: targetBlock.id,
+              branch: null,
+              custom: true
+            });
+            renderConnections();
+            generatePlantUML();
+          }
+
+          connectionStart = null;
+        }
+      });
+
+      // Обработка перетаскивания
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    function handleMouseDown(event, blockElement) {
+      if (event.target.classList.contains('delete-btn')) {
+        event.stopPropagation();
+        deleteBlock(blockElement.id);
+        return;
+      }
+
+      if (event.target.classList.contains('connection-point') || event.target.classList.contains('counted-cycle-connection') || event.target.classList.contains('while-cycle-connection') || event.target.classList.contains('until-cycle-connection')) {
+        return;
+      }
+
+      const blockId = blockElement.id;
+      const block = blocks.find(b => b.id === blockId);
+
+      if (block && ['start'].includes(block.type)) {
+        return;
+      }
+
+      if (block && ['process', 'input', 'output', 'decision', 'counted-cycle', 'while-cycle-condition', 'while-cycle-body', 'until-cycle-condition', 'until-cycle-body', 'counted-cycle', 'counted-cycle-condition', 'counted-cycle-body'].includes(block.type)) {
+        if (event.detail === 2) {
+          showEditPopup(block);
+          return;
+        }
+      }
+
+      draggingBlock = block;
+
+      const rect = blockElement.getBoundingClientRect();
+      offsetX = event.clientX - rect.left;
+      offsetY = event.clientY - rect.top;
+
+      event.preventDefault();
+    }
+
+    function handleMouseMove(event) {
+      if (!draggingBlock) return;
+
+      const canvas = document.getElementById('flowchart-canvas');
+      const canvasRect = canvas.getBoundingClientRect();
+
+      const newX = event.clientX - canvasRect.left - offsetX;
+      const newY = event.clientY - canvasRect.top - offsetY;
+
+      draggingBlock.position = { x: newX, y: newY };
+
+      renderBlock(draggingBlock);
+      renderConnections();
+      generatePlantUML();
+    }
+
+    function handleMouseUp() {
+      draggingBlock = null;
+    }
+
+    function addStartBlock(x, y) {
+      const blockId = `block-${blockCounter++}`;
+      const block = {
+        id: blockId,
+        type: 'start',
+        position: { x, y },
+        content: 'Начало'
+      };
+
+      blocks.push(block);
+      renderBlock(block);
+    }
+
+    function createNewBlock(type) {
+      if (!selectedConnectionPoint) return;
+
+      const x = selectedConnectionPoint.x + 100;
+      const y = selectedConnectionPoint.y + 50;
+
+      // Логика для новых типов циклов
+      if (type === 'while-cycle') {
+        // Создаем ромб (условие) и прямоугольник (тело)
+        const conditionId = `block-${blockCounter++}`;
+        const bodyId = `block-${blockCounter++}`;
+        const conditionBlock = {
+          id: conditionId,
+          type: 'while-cycle-condition',
+          position: { x: x, y: y },
+          content: 'условие?'
+        };
+        const bodyBlock = {
+          id: bodyId,
+          type: 'while-cycle-body',
+          position: { x: x, y: y + 120 },
+          content: 'тело цикла'
+        };
+
+        // Связываем их как составной элемент
+        conditionBlock.bodyId = bodyId;
+        bodyBlock.conditionId = conditionId;
+
+        blocks.push(conditionBlock);
+        blocks.push(bodyBlock);
+
+        renderBlock(conditionBlock);
+        renderBlock(bodyBlock);
+
+        // Создаем соединение от предыдущего блока к условию
+        connections.push({
+          from: selectedConnectionPoint.blockId,
+          to: conditionId,
+          branch: selectedConnectionPoint.blockType === 'decision' ? selectedConnectionPoint.branch : null
+        });
+
+        // Соединение от условия к телу
+        connections.push({
+          from: conditionId,
+          to: bodyId,
+          branch: 'yes' // ветка "да" для условия
+        });
+
+        // Возвратная стрелка от тела к условию
+        connections.push({
+          from: bodyId,
+          to: conditionId,
+          branch: 'loop',
+          loop: true
+        });
+
+        renderConnections();
+        generatePlantUML();
+        selectedConnectionPoint = null;
+        return;
+      }
+
+      if (type === 'until-cycle') {
+        // Создаем прямоугольник (тело) и ромб (условие)
+        const bodyId = `block-${blockCounter++}`;
+        const conditionId = `block-${blockCounter++}`;
+        const bodyBlock = {
+          id: bodyId,
+          type: 'until-cycle-body',
+          position: { x: x, y: y },
+          content: 'тело цикла'
+        };
+        const conditionBlock = {
+          id: conditionId,
+          type: 'until-cycle-condition',
+          position: { x: x, y: y + 100 },
+          content: 'условие?'
+        };
+
+        // Связываем их как составной элемент
+        conditionBlock.bodyId = bodyId;
+        bodyBlock.conditionId = conditionId;
+
+        blocks.push(bodyBlock);
+        blocks.push(conditionBlock);
+
+        renderBlock(bodyBlock);
+        renderBlock(conditionBlock);
+
+        // Создаем соединение от предыдущего блока к телу
+        connections.push({
+          from: selectedConnectionPoint.blockId,
+          to: bodyId,
+          branch: selectedConnectionPoint.blockType === 'decision' ? selectedConnectionPoint.branch : null
+        });
+
+        // Соединение от тела к условию
+        connections.push({
+          from: bodyId,
+          to: conditionId
+        });
+
+        // Возвратная стрелка от условия к телу
+        connections.push({
+          from: conditionId,
+          to: bodyId,
+          branch: 'continue',
+          loop: true
+        });
+
+        renderConnections();
+        generatePlantUML();
+        selectedConnectionPoint = null;
+        return;
+      }
+
+      if (type === 'counted-cycle') {
+        // Создаем условный блок и блок тела для счетного цикла
+        const conditionId = `block-${blockCounter++}`;
+        const bodyId = `block-${blockCounter++}`;
+        const conditionBlock = {
+          id: conditionId,
+          type: 'counted-cycle-condition', // Новый тип
+          position: { x: x, y: y },
+          content: 'i := 1 to n', // Стандартное содержимое
+          bodyId: bodyId // Связываем с телом
+        };
+        const bodyBlock = {
+          id: bodyId,
+          type: 'counted-cycle-body', // Новый тип
+          position: { x: x, y: y + 100 }, // Размещаем ниже условия
+          content: 'действие в цикле', // Стандартное содержимое
+          conditionId: conditionId // Связываем с условием
+        };
+
+        blocks.push(conditionBlock);
+        blocks.push(bodyBlock);
+
+        renderBlock(conditionBlock);
+        renderBlock(bodyBlock);
+
+        // Создаем соединение от предыдущего блока к условию цикла
+        connections.push({
+          from: selectedConnectionPoint.blockId,
+          to: conditionId,
+          branch: selectedConnectionPoint.blockType === 'decision' ? selectedConnectionPoint.branch : null
+        });
+
+        // Создаем соединение от условия к телу (основной поток внутри цикла)
+        connections.push({
+          from: conditionId,
+          to: bodyId,
+          branch: 'yes' // Или просто без ветки, если это основной путь
+        });
+
+        renderConnections();
+        generatePlantUML();
+        selectedConnectionPoint = null;
+        return;
+      }
+
+      // Логика для существующих типов
+      const blockId = `block-${blockCounter++}`;
+      let content = '';
+
+      switch (type) {
+        case 'process':
+          content = 'a := b + 1';
+          break;
+        case 'input':
+          content = 'x';
+          break;
+        case 'output':
+          content = 'x';
+          break;
+        case 'decision':
+          content = 'x > 0';
+          break;
+        case 'end':
+          content = 'Конец';
+          break;
+        // case 'counted-cycle':
+        //   content = 'i := 1 to n';
+        //   break;
+      }
+
+      const block = {
+        id: blockId,
+        type: type,
+        position: { x, y },
+        content: content
+      };
+
+      blocks.push(block);
+      renderBlock(block);
+
+      connections.push({
+        from: selectedConnectionPoint.blockId,
+        to: blockId,
+        branch: selectedConnectionPoint.blockType === 'decision' ? selectedConnectionPoint.branch : null
+      });
+
+      renderConnections();
+      generatePlantUML();
+
+      selectedConnectionPoint = null;
+    }
+
+    function deleteBlock(blockId) {
+      const blockIndex = blocks.findIndex(b => b.id === blockId);
+      if (blockIndex === -1) return;
+
+      // Найти связанные блоки цикла и удалить их тоже
+      const block = blocks[blockIndex];
+      let idsToDelete = [blockId];
+      if (block.type === 'while-cycle-condition' && block.bodyId) {
+        idsToDelete.push(block.bodyId);
+      } else if (block.type === 'while-cycle-body' && block.conditionId) {
+        idsToDelete.push(block.conditionId);
+      } else if (block.type === 'until-cycle-condition' && block.bodyId) {
+        idsToDelete.push(block.bodyId);
+      } else if (block.type === 'until-cycle-body' && block.conditionId) {
+        idsToDelete.push(block.conditionId);
+      }
+
+      // Удаляем все соединения, связанные с удаляемыми блоками
+      connections = connections.filter(conn => !idsToDelete.includes(conn.from) && !idsToDelete.includes(conn.to));
+
+      // Удаляем блоки
+      idsToDelete.forEach(id => {
+        const idx = blocks.findIndex(b => b.id === id);
+        if (idx > -1) blocks.splice(idx, 1);
+        const blockElement = document.getElementById(id);
+        if (blockElement) blockElement.remove();
+      });
+
+      renderConnections();
+      generatePlantUML();
+    }
+
+    function showEditPopup(block) {
+      editingBlockId = block.id;
+      const popup = document.getElementById('edit-popup');
+      const title = document.getElementById('edit-popup-title');
+      const input = document.getElementById('edit-content-input');
+
+      let placeholder = 'Введите текст';
+      switch (block.type) {
+        case 'process':
+          title.textContent = 'Редактировать действие';
+          placeholder = 'Например: x := y + 1';
+          break;
+        case 'input':
+          title.textContent = 'Редактировать ввод данных';
+          placeholder = 'Например: x, y, z';
+          break;
+        case 'output':
+          title.textContent = 'Редактировать вывод данных';
+          placeholder = 'Например: "Результат: ", x';
+          break;
+        case 'decision':
+          title.textContent = 'Редактировать условие';
+          placeholder = 'Например: x > 0';
+          break;
+        case 'counted-cycle':
+          title.textContent = 'Редактировать цикл';
+          placeholder = 'Например: i := 1 to 10';
+          break;
+        case 'while-cycle-condition':
+          title.textContent = 'Редактировать условие цикла (while)';
+          placeholder = 'Например: a > 10';
+          break;
+        case 'while-cycle-body':
+          title.textContent = 'Редактировать тело цикла (while)';
+          placeholder = 'Например: x := x * 2';
+          break;
+        case 'until-cycle-condition':
+          title.textContent = 'Редактировать условие цикла (until)';
+          placeholder = 'Например: x = 23';
+          break;
+        case 'until-cycle-body':
+          title.textContent = 'Редактировать тело цикла (until)';
+          placeholder = 'Например: x := x + 1';
+          break;
+      }
+
+      input.placeholder = placeholder;
+      input.value = block.content;
+      input.focus();
+
+      popup.classList.add('active');
+    }
+
+    function saveBlockContent() {
+      if (!editingBlockId) return;
+
+      const block = blocks.find(b => b.id === editingBlockId);
+      if (!block) return;
+
+      const newValue = document.getElementById('edit-content-input').value.trim();
+      if (newValue) {
+        block.content = newValue;
+        renderBlock(block);
+        generatePlantUML();
+      }
+
+      document.getElementById('edit-popup').classList.remove('active');
+      editingBlockId = null;
+    }
+
+    function renderBlock(block) {
+      const canvas = document.getElementById('flowchart-canvas');
+      const blockElement = document.getElementById(block.id) || document.createElement('div');
+
+      // Устанавливаем классы для новых типов
+      if (block.type === 'counted-cycle-condition') {
+        blockElement.className = 'block decision'; // Используем стиль ромба для условия
+      } else if (block.type === 'counted-cycle-body') {
+        blockElement.className = 'block process'; // Используем стиль прямоугольника для тела
+      } else if (block.type === 'while-cycle-condition') {
+        blockElement.className = 'block while-cycle-condition';
+      } else if (block.type === 'while-cycle-body') {
+        blockElement.className = 'block while-cycle-body';
+      } else if (block.type === 'until-cycle-condition') {
+        blockElement.className = 'block until-cycle-condition';
+      } else if (block.type === 'until-cycle-body') {
+        blockElement.className = 'block until-cycle-body';
+      } else {
+        blockElement.className = `block ${block.type}`;
+      }
+
+      blockElement.id = block.id;
+      blockElement.style.left = `${block.position.x}px`;
+      blockElement.style.top = `${block.position.y}px`;
+
+      switch (block.type) {
+        case 'start':
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'end':
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'process':
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'input':
+          blockElement.innerHTML = `<span>Ввод: ${block.content}</span>`;
+          break;
+        case 'output':
+          blockElement.innerHTML = `<span>Вывод: ${block.content}</span>`;
+          break;
+        case 'decision':
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'counted-cycle-condition': // Добавлено
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'counted-cycle-body': // Добавлено
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'counted-cycle': // Устаревший тип, может быть удален, если не используется где-то еще
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'while-cycle-condition':
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'while-cycle-body':
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'until-cycle-condition':
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+        case 'until-cycle-body':
+          blockElement.innerHTML = `<span>${block.content}</span>`;
+          break;
+      }
+
+      if (block.type !== 'start') {
+        const deleteBtn = document.createElement('div');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.innerHTML = '×';
+        blockElement.appendChild(deleteBtn);
+      }
+
+      if (block.type === 'end') {
+        const customConnectBtn = document.createElement('div');
+        customConnectBtn.className = 'custom-connect-btn';
+        customConnectBtn.style.backgroundColor = '#2196F3';
+        customConnectBtn.style.transform = 'rotate(45deg)';
+        customConnectBtn.innerHTML = '+';
+        customConnectBtn.title = 'Создать кастомное соединение';
+        customConnectBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          connectionStart = { block: block };
+        });
+        blockElement.appendChild(customConnectBtn);
+      }
+
+      const existingPoints = blockElement.querySelectorAll('.connection-point, .counted-cycle-connection, .while-cycle-connection, .until-cycle-connection, .cycle-condition-connection, .counted-cycle-condition-connection');
+      existingPoints.forEach(point => point.remove());
+
+      // Точки соединения для новых типов
+      if (block.type === 'counted-cycle-body') {
+        // Точка на нижней стороне тела для соединения с другим блоком внутри цикла
+        const connectionPoint = document.createElement('div');
+        connectionPoint.className = 'connection-point absolute bottom-0 -right-1 w-4 h-4 bg-blue-500 rounded-full cursor-pointer border-2 border-white';
+        connectionPoint.style.transform = 'translate(-50%, 50%)';
+        blockElement.appendChild(connectionPoint);
+      } else if (block.type === 'counted-cycle-condition') {
+        // Точка на нижней стороне условия для продолжения потока ПОСЛЕ endwhile
+        const connectionPoint = document.createElement('div');
+        connectionPoint.className = 'counted-cycle-condition-connection'; // Новый общий класс
+        connectionPoint.style.top = '100%';
+        connectionPoint.style.left = '50%';
+        connectionPoint.dataset.branch = 'main_after_counted';
+        blockElement.appendChild(connectionPoint);
+
+
+      } else if (block.type === 'while-cycle-body') {
+        // Точка на нижней стороне тела для возврата к условию
+        const connectionPoint = document.createElement('div');
+        connectionPoint.className = 'while-cycle-connection';
+        connectionPoint.style.top = '100%';
+        connectionPoint.style.left = '50%';
+        connectionPoint.dataset.branch = 'loop';
+        connectionPoint.classList.remove('absolute');
+        blockElement.appendChild(connectionPoint);
+      } else if (block.type === 'until-cycle-body') {
+        // Точка на верхней стороне тела для возврата из условия
+        const connectionPoint = document.createElement('div');
+        connectionPoint.className = 'until-cycle-connection';
+        connectionPoint.style.top = '0%';
+        connectionPoint.style.left = '50%';
+        connectionPoint.dataset.branch = 'continue';
+        connectionPoint.classList.remove('absolute');
+        blockElement.appendChild(connectionPoint);
+      } else if (block.type === 'decision') {
+        const yesPoint = document.createElement('div');
+        yesPoint.className = 'connection-point absolute right-0 top-1/2 w-4 h-4 bg-green-500 rounded-full cursor-pointer border-2 border-white';
+        yesPoint.style.transform = 'translate(50%, -50%)';
+        yesPoint.dataset.branch = 'yes';
+
+        const noPoint = document.createElement('div');
+        noPoint.className = 'connection-point absolute left-0 top-1/2 w-4 h-4 bg-red-500 rounded-full cursor-pointer border-2 border-white';
+        noPoint.style.transform = 'translate(-50%, -50%)';
+        noPoint.dataset.branch = 'no';
+
+        blockElement.appendChild(yesPoint);
+        blockElement.appendChild(noPoint);
+
+        // Точка подключения для выхода из условия (после веток 'да' и 'нет')
+        const exitPoint = document.createElement('div');
+        // Используем существующий стиль для точки подключения или определите новый
+        exitPoint.className = 'connection-point absolute bottom-0 -right-1 w-4 h-4 bg-blue-500 rounded-full cursor-pointer border-2 border-white';
+        // Позиционируем точку под блоком условия, например, по центру снизу
+        exitPoint.style.transform = 'translate(-50%, 50%)'; // Центрируем по горизонтали, смещаем вниз
+        exitPoint.style.left = '50%'; // Позиционируем по центру блока
+        exitPoint.style.top = '100%'; // Размещаем под блоком
+        exitPoint.dataset.branch = 'exit'; // Уникальное значение для ветки выхода
+
+        blockElement.appendChild(exitPoint);
+      } else if (block.type !== 'end') {
+        if (block.type === 'counted-cycle') { // Устаревший тип
+          const connectionPoint = document.createElement('div');
+          connectionPoint.className = 'counted-cycle-connection';
+          connectionPoint.dataset.branch = 'main';
+          blockElement.appendChild(connectionPoint);
+        } else {
+          const connectionPoint = document.createElement('div');
+          connectionPoint.className = 'connection-point bottom-0 -right-1 w-4 h-4 bg-blue-500 rounded-full cursor-pointer border-2 border-white';
+          connectionPoint.style.transform = 'translate(-50%, 50%)';
+          blockElement.appendChild(connectionPoint);
+        }
+      }
+
+      blockElement.addEventListener('mousedown', (e) => handleMouseDown(e, blockElement));
+
+      if (!document.getElementById(block.id)) {
+        canvas.appendChild(blockElement);
+      }
+
+      setupBlockEventListeners(blockElement, block);
+    }
+
+    function setupBlockEventListeners(blockElement, block) {
+      // Добавлен .cycle-condition-connection в список селекторов
+      const connectionPoints = blockElement.querySelectorAll('.connection-point, .counted-cycle-connection, .while-cycle-connection, .until-cycle-connection, .cycle-condition-connection, .counted-cycle-condition-connection');
+      connectionPoints.forEach(point => {
+        point.addEventListener('click', (e) => {
+          e.stopPropagation();
+
+          if (selectedConnectionPoint &&
+            (selectedConnectionPoint.blockId !== block.id ||
+              (point.dataset.branch && selectedConnectionPoint.branch !== point.dataset.branch))) {
+            connections.push({
+              from: selectedConnectionPoint.blockId,
+              to: block.id,
+              branch: block.type === 'decision' ? point.dataset.branch : null
+            });
+
+            // --- ДОБАВЛЕНО ДЛЯ ОТЛАДКИ ---
+            console.log("Создано соединение:", { from: selectedConnectionPoint.blockId, to: block.id, branch: block.type === 'decision' ? point.dataset.branch : null });
+            console.log("Все соединения:", connections);
+            // --- КОНЕЦ ДОБАВЛЕНИЯ ---
+
+            renderConnections();
+            generatePlantUML(); // Обновляем PlantUML после добавления соединения
+
+            selectedConnectionPoint = null;
+          } else {
+            selectedConnectionPoint = {
+              blockId: block.id,
+              blockType: block.type,
+              x: block.position.x + blockElement.offsetWidth / 2,
+              y: block.position.y + blockElement.offsetHeight,
+              branch: point.dataset.branch || null
+            };
+
+            document.getElementById('block-type-popup').classList.add('active');
+          }
+        });
+      });
+    }
+
+    function renderConnections() {
+      const canvas = document.getElementById('flowchart-canvas');
+
+      const oldConnections = canvas.querySelectorAll('.connector, .arrow');
+      oldConnections.forEach(conn => conn.remove());
+
+      // Создаем SVG для стрелок, если его нет
+      if (!document.getElementById('svg-arrows')) {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.id = "svg-arrows";
+        svg.style.position = "absolute";
+        svg.style.top = "0";
+        svg.style.left = "0";
+        svg.style.width = "100%";
+        svg.style.height = "100%";
+        svg.style.pointerEvents = "none";
+        svg.style.zIndex = "4";
+        canvas.appendChild(svg);
+      }
+      const svg = document.getElementById('svg-arrows');
+      svg.innerHTML = ""; // Очищаем старые стрелки
+
+      connections.forEach(conn => {
+        const fromBlock = document.getElementById(conn.from);
+        const toBlock = document.getElementById(conn.to);
+
+        if (!fromBlock || !toBlock) return;
+
+        const fromRect = fromBlock.getBoundingClientRect();
+        const toRect = toBlock.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+
+        let fromX, fromY, toX, toY;
+
+        if (blocks.find(b => b.id === conn.from).type === 'decision' && conn.branch) {
+          if (conn.branch === 'yes') {
+            fromX = fromRect.right - canvasRect.left;
+            fromY = fromRect.top + fromRect.height / 2 - canvasRect.top;
+          } else {
+            fromX = fromRect.left - canvasRect.left;
+            fromY = fromRect.top + fromRect.height / 2 - canvasRect.top;
+          }
+        } else if (conn.loop) {
+          // Логика для возвратных стрелок циклов
+          if (conn.from === conn.to) {
+            // Если соединение от блока к самому себе (не используется, но на всякий)
+            return;
+          }
+          // Для while: от тела к условию (снизу вверх)
+          if (blocks.find(b => b.id === conn.from).type === 'while-cycle-body' && blocks.find(b => b.id === conn.to).type === 'while-cycle-condition') {
+            fromX = fromRect.left + fromRect.width / 2 - canvasRect.left;
+            fromY = fromRect.top - canvasRect.top;
+            toX = toRect.left + toRect.width / 2 - canvasRect.left;
+            toY = toRect.bottom - canvasRect.top;
+          }
+          // Для until: от условия к телу (снизу вверх)
+          if (blocks.find(b => b.id === conn.from).type === 'until-cycle-condition' && blocks.find(b => b.id === conn.to).type === 'until-cycle-body') {
+            fromX = fromRect.left + fromRect.width / 2 - canvasRect.left;
+            fromY = fromRect.top - canvasRect.top;
+            toX = toRect.left + toRect.width / 2 - canvasRect.left;
+            toY = toRect.bottom - canvasRect.top;
+          }
+
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          // Простая кривая Безье для изгиба стрелки
+          const midX = (fromX + toX) / 2;
+          const controlY = Math.min(fromY, toY) - 40; // Поднимаем кривую вверх
+          path.setAttribute("d", `M ${fromX} ${fromY} C ${midX} ${controlY}, ${midX} ${controlY}, ${toX} ${toY}`);
+          path.setAttribute("class", "connector loop-connector");
+          svg.appendChild(path);
+          return; // Выходим, так как рисуем в SVG
+        } else {
+          fromX = fromRect.left + fromRect.width / 2 - canvasRect.left;
+          fromY = fromRect.bottom - canvasRect.top;
+        }
+
+        if (!conn.loop) {
+          toX = toRect.left + toRect.width / 2 - canvasRect.left;
+          toY = toRect.top - canvasRect.top;
+
+          const connector = document.createElement('div');
+          connector.className = `connector ${conn.custom ? 'custom-connection' : ''}`;
+          connector.style.backgroundColor = conn.custom ? '#3f51b5' : '#666';
+
+          const length = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+          const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
+
+          connector.style.width = `${length}px`;
+          connector.style.height = '2px';
+          connector.style.position = 'absolute';
+          connector.style.transform = `rotate(${angle}deg)`;
+          connector.style.transformOrigin = '0 0';
+          connector.style.left = `${fromX}px`;
+          connector.style.top = `${fromY}px`;
+          connector.style.zIndex = '5';
+
+          const arrow = document.createElement('div');
+          arrow.className = 'arrow';
+          arrow.innerHTML = '▸';
+          arrow.style.position = 'absolute';
+          arrow.style.left = `${fromX + (toX - fromX) * 0.8}px`;
+          arrow.style.top = `${fromY + (toY - fromY) * 0.8}px`;
+          arrow.style.transform = `rotate(${angle}deg)`;
+          arrow.style.color = conn.custom ? '#3f51b5' : '#666';
+          arrow.style.fontSize = '16px';
+          arrow.style.zIndex = '6';
+
+          canvas.appendChild(connector);
+          canvas.appendChild(arrow);
+        }
+      });
+    }
+
+    function generatePlantUML() {
+      let plantUML = "@startuml\n";
+
+      function traverse(block, indent, visited) {
+        // --- ДОБАВЛЕНО ДЛЯ ОТЛАДКИ ---
+        console.log("Обходим блок:", block.id, block.type);
+        // --- КОНЕЦ ДОБАВЛЕНИЯ ---
+
+        if (visited.has(block.id)) return;
+        visited.add(block.id);
+
+        const indentation = "  ".repeat(indent);
+
+        switch (block.type) {
+          case 'start':
+            plantUML += "start\n";
+            break;
+          case 'end':
+            plantUML += `${indentation}stop\n`;
+            return; // Конец ветки
+          case 'process':
+            plantUML += `${indentation}:${block.content};\n`;
+            break;
+          case 'input':
+            plantUML += `${indentation}:Ввод: ${block.content};\n`;
+            break;
+          case 'output':
+            plantUML += `${indentation}:Вывод: ${block.content};\n`;
+            break;
+          case 'decision':
+            plantUML += `${indentation}if (${block.content}) then (да)\n`;
+
+            const yesConn = connections.find(c => c.from === block.id && c.branch === 'yes');
+            if (yesConn) {
+              const yesBlock = blocks.find(b => b.id === yesConn.to);
+              if (yesBlock) {
+                traverse(yesBlock, indent + 1, visited);
+              }
+            }
+
+            plantUML += `${indentation}else (нет)\n`;
+
+            const noConn = connections.find(c => c.from === block.id && c.branch === 'no');
+            if (noConn) {
+              const noBlock = blocks.find(b => b.id === noConn.to);
+              if (noBlock) {
+                traverse(noBlock, indent + 1, visited);
+              }
+            }
+
+            plantUML += `${indentation}endif\n`;
+
+            // --- ИЗМЕНЕНИЕ ---
+            // После endif ищем следующий блок, который был подключен к точке 'exit'
+            const exitConn = connections.find(c => c.from === block.id && c.branch === 'exit');
+            if (exitConn) {
+              const exitBlock = blocks.find(b => b.id === exitConn.to);
+              if (exitBlock) {
+                traverse(exitBlock, indent, visited); // Продолжаем с тем же отступом
+              }
+            }
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+            break;
+
+          case 'counted-cycle-condition': // Обработка нового счетного цикла
+            const countedBodyBlock = blocks.find(b => b.id === block.bodyId && b.type === 'counted-cycle-body');
+            if (countedBodyBlock) {
+              plantUML += `${indentation}while (${block.content}) is (да)\n`;
+              // Начинаем обход тела цикла
+              let currentBodyBlock = countedBodyBlock;
+              while (currentBodyBlock) {
+                // Проверяем, не является ли этот блок началом возврата к условию
+                const loopBackConn = connections.find(c => c.from === currentBodyBlock.id && c.to === block.id && c.loop);
+                if (loopBackConn) {
+                  // Нашли возвратную связь, выходим из цикла обхода тела
+                  break;
+                }
+
+                // --- ИСПРАВЛЕНО: Вместо вывода содержимого, вызываем traverse ---
+                // Это гарантирует правильную обработку типа блока (decision, cycle и т.д.)
+                // Обрабатываем текущий блок тела, увеличивая отступ
+                traverse(currentBodyBlock, indent + 1, visited); // Передаём indent + 1 для тела цикла
+                // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
+                // Ищем следующий блок в цепочке тела (не возврат, не ветка условия, не основной поток после цикла)
+                const nextBodyConn = connections.find(c =>
+                  c.from === currentBodyBlock.id &&
+                  !c.loop && // Не возврат
+                  !c.branch // Не yes/no (это для decision) и не main_after_counted (это для выхода из цикла)
+                );
+                if (nextBodyConn) {
+                  currentBodyBlock = blocks.find(b => b.id === nextBodyConn.to);
+                } else {
+                  // Если следующего блока нет, выходим
+                  break;
+                }
+              }
+              plantUML += `${indentation}endwhile (нет)\n`;
+              // После endwhile ищем следующий блок в потоке (после условного блока цикла)
+              const mainConnAfterCounted = connections.find(c =>
+                c.from === block.id && // Ищем соединение ОТ условия цикла
+                !c.branch &&
+                !['yes', 'no'].includes(c.branch) &&
+                !c.loop
+              );
+              if (mainConnAfterCounted) {
+                const nextBlockAfterCounted = blocks.find(b => b.id === mainConnAfterCounted.to);
+                if (nextBlockAfterCounted) {
+                  traverse(nextBlockAfterCounted, indent, visited);
+                }
+              }
+            }
+            break;
+
+          case 'while-cycle-condition': // Обработка цикла с предусловием
+            const whileBodyBlock = blocks.find(b => b.id === block.bodyId && b.type === 'while-cycle-body');
+            if (whileBodyBlock) {
+              plantUML += `${indentation}while (${block.content}) is (да)\n`;
+              // Выводим тело цикла
+              plantUML += `${indentation}  :${whileBodyBlock.content};\n`;
+              plantUML += `${indentation}endwhile (нет)\n`;
+              // Продолжаем обход после endwhile
+              // --- ДОБАВЛЕНО ДЛЯ ОТЛАДКИ ---
+              console.log("while-cycle-condition: ищу mainConn из", block.id);
+              const mainConnAfterWhileDebug = connections.find(c =>
+                c.from === block.id && // Ищем соединение ОТ условия цикла
+                !c.branch && // <-- УБЕДИМСЯ, ЧТО branch null
+                !['yes', 'no'].includes(c.branch) &&
+                !c.loop
+              );
+              console.log("Найденное mainConnAfterWhile:", mainConnAfterWhileDebug);
+              // --- КОНЕЦ ДОБАВЛЕНИЯ ---
+              if (mainConnAfterWhileDebug) { // Используем отладочную переменную
+                const nextBlockAfterWhile = blocks.find(b => b.id === mainConnAfterWhileDebug.to);
+                if (nextBlockAfterWhile) {
+                  traverse(nextBlockAfterWhile, indent, visited);
+                }
+              }
+            }
+            break;
+          case 'until-cycle-body': // Обработка цикла с постусловием
+            const untilConditionBlock = blocks.find(b => b.id === block.conditionId && b.type === 'until-cycle-condition');
+            if (untilConditionBlock) {
+              plantUML += `${indentation}repeat\n`;
+              plantUML += `${indentation}  :${block.content};\n`; // Выводим тело
+              plantUML += `${indentation}repeat while (${untilConditionBlock.content}) is (продолжить)\n`;
+              // Продолжаем обход после repeat...until
+              // --- ДОБАВЛЕНО ДЛЯ ОТЛАДКИ ---
+              console.log("until-cycle-body: ищу mainConn из", untilConditionBlock.id);
+              const mainConnAfterUntilDebug = connections.find(c =>
+                c.from === untilConditionBlock.id && // Ищем соединение ОТ условия цикла
+                !c.branch && // <-- УБЕДИМСЯ, ЧТО branch null
+                !['yes', 'no'].includes(c.branch) &&
+                !c.loop
+              );
+              console.log("Найденное mainConnAfterUntil:", mainConnAfterUntilDebug);
+              // --- КОНЕЦ ДОБАВЛЕНИЯ ---
+              if (mainConnAfterUntilDebug) { // Используем отладочную переменную
+                const nextBlockAfterUntil = blocks.find(b => b.id === mainConnAfterUntilDebug.to);
+                if (nextBlockAfterUntil) {
+                  traverse(nextBlockAfterUntil, indent, visited);
+                }
+              }
+            }
+            break;
+          case 'counted-cycle-body': // Обработка тела счетного цикла
+            plantUML += `${indentation}:${block.content};\n`;
+            break;
+        }
+
+        // Оригинальная логика для продолжения обхода (для всех остальных типов, кроме counted-cycle, while-cycle-condition, until-cycle-body, которые обрабатываются отдельно выше)
+        // --- ДОБАВЛЕНО ДЛЯ ОТЛАДКИ ---
+        console.log("Проверяю default mainConn для блока", block.id, "(не counted-cycle, не while-cycle-condition, не until-cycle-body)");
+        const defaultMainConn = connections.find(c =>
+          c.from === block.id &&
+          !c.branch &&
+          !['yes', 'no'].includes(c.branch) &&
+          !c.loop
+        );
+        console.log("Найденное defaultMainConn:", defaultMainConn);
+        // --- КОНЕЦ ДОБАВЛЕНИЯ ---
+        if (defaultMainConn) {
+          const nextBlock = blocks.find(b => b.id === defaultMainConn.to);
+          if (nextBlock) {
+            traverse(nextBlock, indent, visited);
+          }
+        }
+      }
+
+      const visited = new Set();
+      const startBlock = blocks.find(b => b.type === 'start');
+
+      if (startBlock) {
+        traverse(startBlock, 0, visited);
+      }
+
+      plantUML += "@enduml";
+      // Убедимся, что элемент существует перед обновлением
+      const plantUMLCodeElement = document.querySelector('.plantuml-code');
+      if (plantUMLCodeElement) {
+        plantUMLCodeElement.textContent = plantUML;
+      } else {
+        console.error("Элемент с классом 'plantuml-code' не найден!");
+      }
+      return plantUML;
+    }
+
+    function scrollToPascalContainer() {
+      const container = document.querySelector('.pascal-code-container') ||
+        document.getElementById('pascal-code')?.parentElement;
+
+      if (container) {
+        container.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+
+        // Добавляем класс для анимации
+        container.classList.add('result-highlight');
+        setTimeout(() => {
+          container.classList.remove('result-highlight');
+        }, 1500);
+      }
+    }
+
+    function translateToPascal() {
+      scrollToPascalContainer();
+      const plantumlCode = generatePlantUML();
+
+      // Очищаем старые ошибки
+      const errorsContainer = document.getElementById('errors-container');
+      if (errorsContainer) {
+        errorsContainer.innerHTML = '';
+        errorsContainer.style.display = 'none';
+      }
+
+      // Обновляем кнопку
+      const translateBtn = document.getElementById('translate-btn');
+      const translateBtnMobile = document.getElementById('translate-btn-mobile');
+      const originalText = translateBtn ? translateBtn.querySelector('span.truncate')?.textContent : 'Перевести';
+
+      if (translateBtn) translateBtn.disabled = true;
+      if (translateBtnMobile) translateBtnMobile.disabled = true;
+      if (translateBtn) translateBtn.querySelector('span.truncate').textContent = 'Генерация...';
+      if (translateBtnMobile) translateBtnMobile.querySelector('span.truncate').textContent = 'Генерация...';
+
+      fetch('http://localhost:5000/generate-pascal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plantuml: plantumlCode })
+      })
+        .then(response => {
+          // ВСЕГДА парсим JSON, даже при 400
+          return response.json().then(data => {
+            if (!response.ok) {
+              // Это ошибка анализа, но с валидным JSON
+              return { ...data, hasHttpError: true };
+            }
+            return data;
+          });
+        })
+        .then(data => {
+          // Всегда обновляем код (даже при ошибках!)
+          const pascalCode = data.pascal_code || `PROGRAM Error;
+BEGIN
+  writeln('Ошибка генерации');
+END.`;
+          document.getElementById('pascal-code').textContent = pascalCode;
+
+          // Отображаем ВСЕ ошибки и предупреждения
+          const errors = Array.isArray(data.errors) ? data.errors : [];
+          const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+          displayErrors(errors, warnings);
+
+          // Рендеринг AST
+          const astContainer = document.getElementById('ast-tree');
+          if (data.ast && Object.keys(data.ast).length > 0) {
+            astContainer.innerHTML = '';
+            astContainer.appendChild(renderAST(data.ast));
+          } else {
+            astContainer.innerHTML = '<p class="text-slate-500 dark:text-slate-400 italic">AST не сгенерирован</p>';
+          }
+
+          // Если есть ошибки — прокручиваем к ним
+          if (errors.length > 0) {
+            setTimeout(() => {
+              if (errorsContainer && errorsContainer.children.length > 0) {
+                errorsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                errorsContainer.classList.add('animate-pulse');
+                setTimeout(() => errorsContainer.classList.remove('animate-pulse'), 1000);
+              }
+            }, 100);
+          }
+        })
+        .catch(error => {
+          // Настоящая сетевая ошибка (бэкенд не отвечает)
+          console.error('Сетевая ошибка:', error);
+          document.getElementById('pascal-code').textContent = `PROGRAM Error;
+BEGIN
+  writeln('Сервер недоступен');
+END.`;
+          displayErrors([{
+            type: 'error',
+            line: -1,
+            pos: -1,
+            message: 'Не удаётся подключиться к серверу. Запущен ли бэкенд на localhost:5000?',
+            source: 'network'
+          }], []);
+        })
+        .finally(() => {
+          // Восстанавливаем кнопки
+          if (translateBtn) translateBtn.disabled = false;
+          if (translateBtnMobile) translateBtnMobile.disabled = false;
+          if (translateBtn && originalText) translateBtn.querySelector('span.truncate').textContent = originalText;
+          if (translateBtnMobile && originalText) translateBtnMobile.querySelector('span.truncate').textContent = originalText;
+        });
+    }
+
+
+    function displayErrors(errors, warnings) {
+      const container = document.getElementById('errors-container');
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      if (errors.length === 0 && warnings.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+
+      container.style.display = 'block';
+
+      // Отображаем ошибки
+      errors.forEach(error => {
+        const el = document.createElement('div');
+        el.className = 'p-3 rounded-lg bg-red-50/20 border border-red-500/30 text-red-700 dark:text-red-400 dark:bg-red-900/30 dark:border-red-900 mb-2';
+        el.innerHTML = `
+      <div class="flex items-start gap-2">
+        <span class="material-symbols-outlined text-red-500 mt-0.5">error</span>
+        <div>
+          <p class="font-medium">${error.message || 'Ошибка'}</p>
+          <p class="text-xs opacity-80">${error.source || 'анализ'} | Строка: ${error.line || '?'}, Позиция: ${error.pos || '?'}</p>
+        </div>
+      </div>
+    `;
+        container.appendChild(el);
+      });
+
+      // Отображаем предупреждения
+      warnings.forEach(warning => {
+        const el = document.createElement('div');
+        el.className = 'p-3 rounded-lg bg-yellow-50/20 border border-yellow-500/30 text-yellow-700 dark:text-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-900 mb-2';
+        el.innerHTML = `
+      <div class="flex items-start gap-2">
+        <span class="material-symbols-outlined text-yellow-500 mt-0.5">warning</span>
+        <div>
+          <p class="font-medium">${warning.message || 'Предупреждение'}</p>
+          <p class="text-xs opacity-80">${warning.source || 'анализ'} | Строка: ${warning.line || '?'}, Позиция: ${warning.pos || '?'}</p>
+        </div>
+      </div>
+    `;
+        container.appendChild(el);
+      });
+    }
+
+    function copyPascalCode() {
+      const code = document.getElementById('pascal-code').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('copy-code-btn');
+        const originalText = btn.querySelector('span.truncate').textContent;
+
+        btn.querySelector('span.truncate').textContent = 'Скопировано!';
+        setTimeout(() => {
+          btn.querySelector('span.truncate').textContent = originalText;
+        }, 2000);
+      });
+    }
+
+
+
+
+
+
+
+
+
+
+
+    // --- ФУНКЦИИ ЭКСПОРТА ---
+    function exportFlowchart() {
+      const exportData = {
+        blocks: [...blocks],
+        connections: [...connections]
+      };
+
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      // Формируем "человеческий" timestamp: 16-Feb-2025_12-45-33
+      const now = new Date();
+      const pad = n => n.toString().padStart(2, '0');
+
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+      const day = pad(now.getDate());
+      const month = months[now.getMonth()];
+      const year = now.getFullYear();
+
+      const time = [
+        pad(now.getHours()),
+        pad(now.getMinutes()),
+        pad(now.getSeconds())
+      ].join('-');
+
+      const timestamp = `${day}-${month}-${year}_${time}`;
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `flowchart_export_${timestamp}.json`;
+
+      document.body.appendChild(a);
+      a.click();
+
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+
+
+    // --- ФУНКЦИИ ИМПОРТА ---
+    function importFlowchart(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        console.error("Файл не выбран.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const importData = JSON.parse(e.target.result);
+
+          // Проверить структуру файла
+          if (!importData.blocks || !importData.connections || !Array.isArray(importData.blocks) || !Array.isArray(importData.connections)) {
+            throw new Error("Неверный формат файла импорта. Ожидаются поля 'blocks' и 'connections'.");
+          }
+
+          // --- ИСПРАВЛЕНО ---
+          // 1. Очистить DOM от старых блоков
+          const canvas = document.getElementById('flowchart-canvas');
+          // Найти все элементы блоков и удалить их
+          const blockElements = canvas.querySelectorAll('.block'); // Предполагается, что у всех блоков есть класс 'block'
+          blockElements.forEach(el => el.remove());
+
+          // 2. Очистить массивы
+          blocks.length = 0;
+          connections.length = 0;
+
+          // 3. Восстановить данные из файла
+          importData.blocks.forEach(block => blocks.push(block));
+          importData.connections.forEach(conn => connections.push(conn));
+
+          // 4. Обновить blockCounter
+          let maxId = 0;
+          blocks.forEach(block => {
+            const numericId = parseInt(block.id.replace('block-', ''), 10);
+            if (!isNaN(numericId) && numericId > maxId) {
+              maxId = numericId;
+            }
+          });
+          blockCounter = maxId + 1;
+
+          // 5. Перерисовать все импортированные блоки
+          blocks.forEach(block => renderBlock(block));
+
+          // 6. Перерисовать все соединения
+          renderConnections();
+
+          // 7. Обновить PlantUML
+          generatePlantUML();
+
+          console.log("Схема импортирована успешно.");
+
+        } catch (error) {
+          console.error("Ошибка при импорте схемы:", error);
+          alert(`Ошибка при импорте: ${error.message || "Неизвестная ошибка"}`);
+        }
+
+        // Сбросить input
+        event.target.value = '';
+      };
+
+      reader.onerror = function () {
+        console.error("Ошибка при чтении файла.");
+        alert("Ошибка при чтении файла.");
+      };
+
+      reader.readAsText(file);
+    }
+
+    function renderAST(astNode) {
+      if (!astNode || typeof astNode !== 'object') {
+        return document.createTextNode('Нет данных AST');
+      }
+
+      // Создаём корневой элемент details
+      const details = document.createElement('details');
+      details.open = true;
+
+      // Создаём summary
+      const summary = document.createElement('summary');
+      summary.className = 'ast-summary';
+
+      // Определяем класс для цвета
+      let nodeClass = 'ast-node-unknown';
+      if (astNode.type === 'program') nodeClass = 'ast-node-program';
+      else if (['startuml_keyword', 'stop_node', 'enduml_keyword'].includes(astNode.type)) nodeClass = 'ast-node-keyword';
+      else if (astNode.type.includes('action')) nodeClass = 'ast-node-action';
+      else if (astNode.type.includes('condition')) nodeClass = 'ast-node-condition';
+      else if (astNode.type.includes('branch')) nodeClass = 'ast-node-branch';
+
+      summary.className += ` ${nodeClass}`;
+
+      // Формируем текст summary
+      let text = astNode.type;
+      if (astNode.value !== null && astNode.value !== undefined) {
+        text += `: ${astNode.value}`;
+      }
+      if (astNode.line !== null) {
+        text += ` (${astNode.line}:${astNode.pos})`;
+      }
+
+      summary.textContent = text;
+      details.appendChild(summary);
+
+      // Рекурсивно добавляем детей
+      if (astNode.children && astNode.children.length > 0) {
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'ml-4 border-l-2 border-slate-700 pl-2';
+
+        astNode.children.forEach(child => {
+          const childElement = renderAST(child);
+          childrenContainer.appendChild(childElement);
+        });
+
+        details.appendChild(childrenContainer);
+      }
+
+      return details;
+    }
+
+    // Обработчик кнопки "Свернуть всё"
+    document.getElementById('toggle-ast').addEventListener('click', () => {
+      const allDetails = document.querySelectorAll('#ast-tree details');
+      const isOpen = allDetails.length > 0 && allDetails[0].open;
+
+      allDetails.forEach(detail => {
+        detail.open = !isOpen;
+      });
+
+      const btn = document.getElementById('toggle-ast');
+      btn.querySelector('span.truncate').textContent = isOpen ? 'Развернуть всё' : 'Свернуть всё';
+    });
+
+  </script>
+</body>
+
+</html>
