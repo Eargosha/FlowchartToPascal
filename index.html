@@ -143,6 +143,17 @@
       transform: translate(-50%, -50%);
       z-index: 10;
     }
+
+    .popup {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .popup.active {
+      opacity: 1;
+      pointer-events: all;
+    }
   </style>
 </head>
 
@@ -206,6 +217,15 @@
             <div class="hidden sm:flex items-center gap-3 w-full sm:w-auto justify-end">
               <!-- Группа импорт/экспорт -->
               <div class="flex items-center gap-2">
+                <!-- Кнопка Справка -->
+                <button id="help-btn"
+                  class="flex items-center justify-center rounded-lg h-10 px-3 bg-slate-200 dark:bg-[#232f48] text-slate-900 dark:text-white text-sm font-medium leading-normal gap-2 hover:bg-slate-300 dark:hover:bg-[#2b3a57] transition-colors"
+                  aria-label="Как использовать редактор" title="Как использовать редактор">
+                  <span class="material-symbols-outlined text-base">
+                    help
+                  </span>
+                  <span class="hidden sm:inline">Справка</span>
+                </button>
                 <button id="import-btn"
                   class="flex items-center justify-center rounded-lg h-10 px-4 bg-primary/10 text-primary text-sm font-medium leading-normal gap-2 hover:bg-primary/20 transition-colors"
                   aria-label="Импортировать диаграмму">
@@ -274,13 +294,25 @@
           <div id="errors-container" class="mt-2 space-y-2"></div>
           <div
             class=" rounded-xl bg-[#0d1117] p-4 font-mono text-sm border border-slate-200 dark:border-slate-800 shadow-sm">
-            <pre class="overflow-auto w-full whitespace-pre-wrap"><code id="pascal-code" class="language-pascal text-[#c9d1d9]">PROGRAM Flowchart;
+            <!-- <pre class="overflow-auto w-full whitespace-pre-wrap"><code id="pascal-code" class="language-pascal text-[#c9d1d9]">PROGRAM Flowchart;
 VAR
     x: INTEGER;
 BEGIN
     (* Ваш сгенерированный код на Pascal появится здесь. *)
     (* Нажмите кнопку 'Перевести', чтобы сгенерировать код из вашей блок-схемы. *)
-END.</code></pre>
+END.</code></pre> -->
+
+            <div class="flex font-mono text-sm">
+              <!-- Колонка с номерами строк -->
+              <div id="line-numbers"
+                class="text-right pr-4 py-4 select-none text-slate-500 dark:text-slate-600 bg-[#080c11] tabular-nums"
+                style="line-height: 1.5; min-width: 2.5ch;"></div>
+
+              <!-- Колонка с кодом -->
+              <pre id="pascal-code" class="p-4 min-h-[100px] bg-transparent whitespace-pre-wrap"
+                style="line-height: 1.5; margin: 0;"></pre>
+            </div>
+
           </div>
         </div>
         <!-- AST Tree Container -->
@@ -303,6 +335,82 @@ END.</code></pre>
           </div>
         </div>
       </main>
+    </div>
+
+    <!-- Popup Справка -->
+    <div class="popup fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4"
+      id="help-popup">
+      <div class="bg-white dark:bg-slate-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="p-6">
+          <div class="flex justify-between items-start mb-4">
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white">Как строить блок-схемы</h2>
+            <button id="close-help"
+              class="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          <div class="space-y-4 text-slate-700 dark:text-slate-300">
+            <div>
+              <h3 class="font-bold text-slate-900 dark:text-white mb-2">1. Начало работы</h3>
+              <p>Каждая диаграмма начинается с блока <strong>«Начало»</strong>. Чтобы добавить новый блок,
+                <strong>кликните по зелёной точке</strong> под любым существующим блоком.
+              </p>
+            </div>
+
+            <div>
+              <h3 class="font-bold text-slate-900 dark:text-white mb-2">2. Добавление блоков</h3>
+              <p>После клика по точке соединения откроется меню выбора типа блока:</p>
+              <ul class="list-disc pl-5 mt-2 space-y-1">
+                <li><strong>Действие</strong> — для присваиваний (<code>a := b + 1</code>)</li>
+                <li><strong>Ввод данных</strong> — для чтения переменных (<code>x, y</code>)</li>
+                <li><strong>Вывод данных</strong> — для отображения результатов (<code>"Результат: ", x</code>)</li>
+                <li><strong>Условие</strong> — для ветвлений (<code>x > 0</code>)</li>
+                <li><strong>Циклы</strong> — с предусловием, постусловием или счётные</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 class="font-bold text-slate-900 dark:text-white mb-2">3. Редактирование</h3>
+              <p><strong>Дважды кликните</strong> по любому блоку, чтобы изменить его содержимое. Используйте синтаксис
+                Pascal:</p>
+              <ul class="list-disc pl-5 mt-2 space-y-1">
+                <li>Присваивание: <code>:=</code></li>
+                <li>Деление: <code>/</code> → вещественный результат</li>
+                <li>Функции: <code>abs(x)</code>, <code>sqrt(x)</code></li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 class="font-bold text-slate-900 dark:text-white mb-2">4. Условия и циклы</h3>
+              <p>Для условий автоматически создаются ветки <strong>«да»</strong> (зелёная точка справа) и
+                <strong>«нет»</strong> (красная точка слева). Циклы генерируют корректный Pascal-код с <code>FOR</code>,
+                <code>WHILE</code> или <code>REPEAT</code>.
+              </p>
+            </div>
+
+            <div>
+              <h3 class="font-bold text-slate-900 dark:text-white mb-2">5. Генерация кода</h3>
+              <p>Нажмите кнопку <strong>«Перевести»</strong>, чтобы получить готовый код на Pascal. Все ошибки будут
+                показаны под окном кода.</p>
+            </div>
+
+            <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg">
+              <p class="text-sm">
+                <span class="font-bold text-slate-900 dark:text-white">Совет:</span> Используйте кнопки
+                <strong>Импорт/Экспорт</strong>, чтобы сохранять и загружать свои диаграммы!
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-end">
+            <button id="close-help-btn"
+              class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+              Понятно!
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Popup для выбора типа блока -->
@@ -364,6 +472,8 @@ END.</code></pre>
         </div>
       </div>
     </div>
+
+
   </div>
 
   <svg id="svg-defs" width="0" height="0">
@@ -412,6 +522,18 @@ END.</code></pre>
     }
 
     function setupEventListeners() {
+
+      document.getElementById('help-btn').addEventListener('click', () => {
+        document.getElementById('help-popup').classList.add('active');
+      });
+
+      document.getElementById('close-help').addEventListener('click', () => {
+        document.getElementById('help-popup').classList.remove('active');
+      });
+
+      document.getElementById('close-help-btn').addEventListener('click', () => {
+        document.getElementById('help-popup').classList.remove('active');
+      });
       document.getElementById('clear-diagram').addEventListener('click', initFlowchart);
       document.getElementById('translate-btn').addEventListener('click', translateToPascal);
       document.getElementById('translate-btn-mobile').addEventListener('click', translateToPascal);
@@ -1505,7 +1627,35 @@ END.</code></pre>
 BEGIN
   writeln('Ошибка генерации');
 END.`;
-          document.getElementById('pascal-code').textContent = pascalCode;
+          // document.getElementById('pascal-code').textContent = pascalCode;
+          // Стало:
+          const codeContainer = document.getElementById('pascal-code');
+          const lineNumbers = document.getElementById('line-numbers');
+
+          // Разбиваем код на строки
+          const lines = pascalCode.split('\n');
+          const highlightedLines = lines.map(line => highlightPascalCode(line));
+
+          // Генерируем HTML для номеров строк
+          const numbersHtml = lines.map((_, i) => `<div>${i + 1}</div>`).join('');
+          lineNumbers.innerHTML = numbersHtml;
+
+          // Генерируем HTML для кода с классами строк
+          const codeHtml = highlightedLines
+            .map((line, i) => `<div class="pascal-code-line" data-line="${i + 1}">${line || '&nbsp;'}</div>`)
+            .join('');
+          codeContainer.innerHTML = codeHtml;
+
+          // Добавляем обработчик клика для подсветки строки
+          codeContainer.querySelectorAll('.pascal-code-line').forEach(line => {
+            line.addEventListener('click', () => {
+              // Убираем активные классы
+              codeContainer.querySelectorAll('.pascal-code-line').forEach(l => l.classList.remove('active'));
+              // Добавляем активный класс
+              line.classList.add('active');
+              // Обновляем номер строки (опционально)
+            });
+          });
 
           // Отображаем ВСЕ ошибки и предупреждения
           const errors = Array.isArray(data.errors) ? data.errors : [];
@@ -1803,6 +1953,114 @@ END.`;
       btn.querySelector('span.truncate').textContent = isOpen ? 'Развернуть всё' : 'Свернуть всё';
     });
 
+
+    function highlightPascalCode(code) {
+      // Экранирование HTML
+      const escapeHtml = (str) => str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      // Список ключевых слов
+      const KEYWORDS = [
+        'program', 'var', 'begin', 'end', 'if', 'then', 'else',
+        'while', 'do', 'for', 'to', 'downto', 'repeat', 'until',
+        'procedure', 'function', 'const', 'type', 'array', 'of',
+        'integer', 'string', 'boolean', 'char', 'real', 'div', 'mod',
+        'and', 'or', 'not', 'xor'
+      ];
+
+      // Разбиваем код на токены в один проход
+      let result = '';
+      let i = 0;
+
+      while (i < code.length) {
+        let matched = false;
+
+        // 1. Комментарии: { ... }
+        if (code[i] === '{') {
+          let j = code.indexOf('}', i);
+          if (j === -1) j = code.length;
+          const comment = code.substring(i, j + 1);
+          result += `<span class="pascal-comment">${escapeHtml(comment)}</span>`;
+          i = j + 1;
+          matched = true;
+        }
+        // 2. Комментарии: (* ... *)
+        else if (code.substring(i, i + 2) === '(*') {
+          let j = code.indexOf('*)', i);
+          if (j === -1) j = code.length;
+          const comment = code.substring(i, j + 2);
+          result += `<span class="pascal-comment">${escapeHtml(comment)}</span>`;
+          i = j + 2;
+          matched = true;
+        }
+        // 3. Комментарии: // ...
+        else if (code.substring(i, i + 2) === '//') {
+          let j = code.indexOf('\n', i);
+          if (j === -1) j = code.length;
+          const comment = code.substring(i, j);
+          result += `<span class="pascal-comment">${escapeHtml(comment)}</span>`;
+          i = j;
+          matched = true;
+        }
+        // 4. Строки: '...' или "..."
+        else if (code[i] === '"' || code[i] === "'") {
+          const quote = code[i];
+          let j = i + 1;
+          while (j < code.length) {
+            if (code[j] === quote && code[j - 1] !== '\\') break;
+            j++;
+          }
+          if (j >= code.length) j = code.length;
+          const str = code.substring(i, j + 1);
+          result += `<span class="pascal-string">${escapeHtml(str)}</span>`;
+          i = j + 1;
+          matched = true;
+        }
+        // 5. Ключевые слова и идентификаторы
+        else if (/[a-zA-Z_]/.test(code[i])) {
+          let j = i;
+          while (j < code.length && /[a-zA-Z0-9_]/.test(code[j])) j++;
+          const word = code.substring(i, j);
+          if (KEYWORDS.includes(word.toLowerCase())) {
+            result += `<span class="pascal-keyword">${word.toLowerCase()}</span>`;
+          } else {
+            result += escapeHtml(word); // Идентификаторы без подсветки
+          }
+          i = j;
+          matched = true;
+        }
+        // 6. Числа
+        else if (/\d/.test(code[i])) {
+          let j = i;
+          // Поддержка вещественных чисел: 123, 12.34, .56
+          while (j < code.length && /[\d.]/.test(code[j])) j++;
+          const num = code.substring(i, j);
+          // Простая проверка, что это действительно число
+          if (/^\d*\.?\d+$/.test(num)) {
+            result += `<span class="pascal-number">${num}</span>`;
+          } else {
+            result += escapeHtml(num);
+          }
+          i = j;
+          matched = true;
+        }
+        // 7. Оператор присваивания :=
+        else if (code.substring(i, i + 2) === ':=') {
+          result += '<span class="pascal-assign">:=</span>';
+          i += 2;
+          matched = true;
+        }
+        // 8. Другие операторы и символы
+        else {
+          result += escapeHtml(code[i]);
+          i++;
+        }
+      }
+
+      return result;
+    }
   </script>
 </body>
 

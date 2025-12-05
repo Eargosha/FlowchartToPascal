@@ -1,3 +1,93 @@
+ /* ===== СТИЛИ ПОДСВЕТКИ PASCAL ===== */
+ .line-numbers {
+    line-height: 25px;
+    font-size: 32px;
+ }
+
+ .pascal-code-line {
+    color: white;
+ }
+
+ .pascal-keyword {
+     color: #2aecec !important;
+     font-weight: bold;
+ }
+
+ /* Фиолетовый */
+ .pascal-string {
+     color: #7e8000 !important;
+ }
+
+ /* Зелёный */
+ .pascal-number {
+     color: #9C640C !important;
+ }
+
+ /* Темно-оранжевый */
+ .pascal-comment {
+     color: #808080 !important;
+     font-style: italic;
+ }
+
+ /* Серый курсив */
+ .pascal-operator {
+     color: #000000 !important;
+ }
+
+ /* Чёрный */
+ .pascal-assign {
+     color: #ffffff !important;
+ }
+
+ /* Темно-красный для := */
+
+ /* Текущая строка */
+ .pascal-code-line.active {
+     background-color: rgba(0, 122, 204, 0.1) !important;
+     position: relative;
+ 
+ }
+
+ .pascal-code-line.active::before {
+     content: "";
+     position: absolute;
+     left: 0;
+     top: 0;
+     bottom: 0;
+     width: 4px;
+     background-color: #007ACC;
+     color: white;
+ }
+
+ /* Общие стили */
+ #pascal-code {
+     margin: 0;
+     line-height: 1.5;
+     cursor: pointer;
+     user-select: text;
+ }
+
+ #pascal-code,
+ #line-numbers {
+     font-family: 'Inter', monospace;
+     font-size: 0.875rem;
+ }
+
+ /* Синхронизация прокрутки */
+ #pascal-editor {
+     max-height: 500px;
+     overflow-y: auto;
+ }
+
+ #pascal-editor::-webkit-scrollbar {
+     width: 8px;
+ }
+
+ #pascal-editor::-webkit-scrollbar-thumb {
+     background: #3c4046;
+     border-radius: 4px;
+ }
+
  .ast-tree {
      font-family: 'Inter', monospace;
      font-size: 0.875rem;
@@ -6,14 +96,15 @@
 
  .ast-summary {
      padding: 0.25rem 0.5rem;
-     border-radius: 0.375rem;
      cursor: pointer;
      user-select: none;
      transition: background-color 0.2s;
+     border-radius: 0;
+     border: 1px solid white;
  }
 
  .ast-summary:hover {
-     background-color: rgba(148, 163, 184, 0.1);
+     background-color: rgba(148, 163, 184, 0.8);
  }
 
  .ast-summary::marker {
@@ -27,24 +118,29 @@
 
  /* Цвета по типам узлов */
  .ast-node-program {
-     background-color: rgba(59, 130, 246, 0.1);
+     background-color: rgba(59, 130, 246, 0.8);
  }
 
  .ast-node-keyword {
-     background-color: rgba(16, 185, 129, 0.1);
+     background-color: rgba(16, 185, 129, 0.8);
  }
 
  .ast-node-action {
-     background-color: rgba(245, 158, 11, 0.1);
+     background-color: rgba(245, 158, 11, 0.8);
  }
 
  .ast-node-condition {
-     background-color: rgba(239, 68, 68, 0.1);
+     background-color: rgba(239, 68, 68, 0.8);
  }
 
  .ast-node-branch {
-     background-color: rgba(139, 92, 246, 0.1);
+     background-color: rgba(139, 92, 246, 0.8);
  }
+
+ .ast-node-unknown {
+     background-color: rgba(139, 92, 246, 0.8);
+ }
+
 
  /* Стили для подсветки ошибок */
  .error-highlight {
@@ -52,6 +148,7 @@
      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.5) !important;
      z-index: 100 !important;
  }
+
 
  .warning-highlight {
      animation: warningPulse 3s infinite;
